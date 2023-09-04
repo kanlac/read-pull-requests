@@ -79,6 +79,8 @@ gb.run('person:*')
 
 以上就是第三周的 read pull request。本来还想再跑跑测试用例看看，但我根据官方文档执行 `REDIS_PORT=6379 go test` 未能成功，时间原因这里就不再深入了。
 
+@*Sep,4*
+
 ## PR02: [external-dns/2917](https://github.com/kubernetes-sigs/external-dns/pull/2917/files)
 
 这周看的仓库是一个配置为 k8s Ingress 和 Service 配置外部 DNS 服务器的工具，简单来说，比如你购买了 Cloudflare 的 DNS 服务，想要把域名解析到 k8s 资源，就可以使用 external-dns，而 external-dns 支持许多主流的 DNS 供应商，包括国内的腾讯云。
