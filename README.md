@@ -2,6 +2,83 @@
 
 探索开源，从读 Pull Request 开始。
 
+## PR03: [go-redis/2675](https://github.com/redis/go-redis/pull/2675/files)
+
+如标题所示，这个 PR 的目标是为 Redis 官方 Go 客户端添加 Gears 支持。
+
+[Gears](https://oss.redis.com/redisgears/) 是 Redis 的一个特性，它是 Redis 的数据处理引擎，支持基于 Redis 数据的事务、批处理、和事件驱动处理，说白了就是可以对 Redis 数据跑一些 Python 脚本。
+
+Gears 并不是 Redis 自带的，而是属于一个扩展模块，如果习惯用 Docker 部署，需要选择包含该扩展的 Redis 镜像（其中包含了 Python 解释器）：
+
+```go
+docker run -d --name redisgears -p 6379:6379 redislabs/redisgears
+```
+
+执行以上代码启动一个 Redis 实例，我们就可以准备测试使用 Gears 了。这里略过往 Redis 实例中添加数据的操作，直接展示通过 redis-cli 执行 Gears 的方法：
+
+```bash
+docker exec -it redisgears redis-cli
+127.0.0.1:6379> RG.PYEXECUTE "GearsBuilder().run()"
+1) 1) "{'event': None, 'key': 'user:2', 'type': 'hash', 'value': {'age': '25', 'name': 'Bob'}}"
+   2) "{'event': None, 'key': 'user:1', 'type': 'hash', 'value': {'age': '35', 'name': 'Alice'}}"
+   3) "{'event': None, 'key': 'user:3', 'type': 'hash', 'value': {'age': '40', 'name': 'Charlie'}}"
+   4) "{'event': None, 'key': 'user:4', 'type': 'hash', 'value': {'age': '28', 'name': 'Diana'}}"
+2) (empty array)
+127.0.0.1:6379>
+```
+
+这是最简单的一个执行 Gears 函数的方法，在 redis-cli 中输入 `RG.PYEXECUTE`，紧跟着是 Python 代码。这个函数什么都没有做，它只是对现有数据做了一个无操作的批处理。我们可以看到 Gears 函数的返回包含两个数据，第一个是返回的数据，第二个是错误。
+
+建议将编写 Gears 的脚本存储到一个文件，然后通过这样的方式传递给容器内的终端：
+
+```bash
+cat mygear.py | docker exec -i redisgears redis-cli -x RG.PYEXECUTE
+```
+
+接下来我们尝试做一个简单的数据处理，不过这次我们不用 redis-cli，而是用 go-redis 来执行：
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/redis/go-redis/v9"
+)
+
+func main() {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+		DB:   0, // 使用默认 DB
+	})
+
+	script := `
+def maximum(a, x):
+	''' Returns the maximum '''
+	a = a if a else 0  # initialize the accumulator
+	return max(a, x)
+
+gb = GearsBuilder()
+gb.map(lambda x: int(x['value']['age']))
+gb.accumulate(maximum)
+gb.run('person:*')
+`
+	val, err := rdb.Do(context.TODO(), "RG.PYEXECUTE", script).Result()
+
+	if err != nil {
+		log.Fatalf("Could not execute script: %v", err)
+		return
+	}
+
+	fmt.Println("Script executed:", val)
+}
+```
+这段 Go 代码演示了 Gears 的基本用法，它会打印 Redis 中所有 "person:" 开头的数据中的最大的 `age`。通过这样的方式编写脚本，甚至引入第三方库，可以让 Redis 完成更为复杂的数据处理操作。
+
+以上就是第三周的 read pull request。本来还想再跑跑测试用例看看，但我根据官方文档执行 `REDIS_PORT=6379 go test` 未能成功，时间原因这里就不再深入了。
+
 ## PR02: [external-dns/2917](https://github.com/kubernetes-sigs/external-dns/pull/2917/files)
 
 这周看的仓库是一个配置为 k8s Ingress 和 Service 配置外部 DNS 服务器的工具，简单来说，比如你购买了 Cloudflare 的 DNS 服务，想要把域名解析到 k8s 资源，就可以使用 external-dns，而 external-dns 支持许多主流的 DNS 供应商，包括国内的腾讯云。
