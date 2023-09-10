@@ -22,6 +22,8 @@ rclone 提供十余种子命令，除了基本的 `ls` `copy` `move` `mkdir` 外
 
 就这么简单。其实如果维护者自己做的话几分钟就改完了，不过把这种不重要不紧急的任务委派出去，也能让更多新人有开源的参与感，也还是不错的。
 
+@*Sep,10*
+
 ## PR03: [go-redis/2675](https://github.com/redis/go-redis/pull/2675/files)
 
 如标题所示，这个 PR 的目标是为 Redis 官方 Go 客户端添加 Gears 支持。
