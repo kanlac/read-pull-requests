@@ -2,6 +2,27 @@
 
 探索开源，从读 Pull Request 开始。
 
+## PR05: [loki/10587](https://github.com/grafana/loki/pull/10587/files)
+
+loki 是一个借鉴了 Prometheus 的设计理念的日志聚合工具，不过采集的不是监控指标而是日志，它是 Grafana 系的工具，满足可观测性需求。
+
+这个 PR 的标题是 "Fix bug in cache of the index object client"，修复一个索引对象客户端的 bug。索引对象客户端是个啥呢？先了解一下什么是对象存储（object storage）。
+
+对象存储是一种适用于非结构化数据的存储方案，相对于文件存储、数据库存储等概念，它将数据包装为对象，并且通过一个唯一标识符（通常是一个键）作为索引来访问，具体可以参考我在另一个 repo 的[整理](https://github.com/kanlac/dailyprompts/blob/main/2023/06/data-storage-schemes.md)。
+
+因此索引对象客户端就可以理解为做对象存储的客户端，它负责：
+
+1. 上传日志数据到服务端
+2. 从服务端查询日志数据（会使用缓存）
+
+再看看这个 PR 具体是要修复什么问题呢？贡献者说的是 "missing results when querying logs older than what is kept on ingesters"，就是说当查询较早的日志时会缺少结果，原因是在默认设置下 "the sync is only performed once on startup, but not subsequently"，即缓存的同步只会在客户端创建时执行一次，之后不再执行同步，导致任何新添加到的对象存储的索引都不会加入缓存。
+
+解决方案是改变客户端缓存更新策略，"If a table is not found locally in cache, it performs a lookup against object storage"，如果本地缓存没有找到表，就执行一次对象存储的查找。
+
+了解了具体问题和解决方案后，就可以看代码了。这个 PR 很贴心的提供了单元测试，还提供了丰富的注释，非常易读，所以我这里也就不必要做解释了。值得一提的是单元测试工具 stretchr/testify 中 `assert` 包和 `require` 包的差别：后者是对前者的封装，条件不满足时会直接 `t.FailNow()`，更简单易用。
+
+@*Sep,17*
+
 ## PR04: [rclone/7273](https://github.com/rclone/rclone/pull/7273)
 
 本周 PR 的关键词是「发送 systemd 通知」和「代码重构」。
