@@ -2,7 +2,25 @@
 
 探索开源，从读 Pull Request 开始。
 
-## PR05: [loki/10587](https://github.com/grafana/loki/pull/10587/files)
+## PR06: [cluster-api/9460](https://github.com/kubernetes-sigs/cluster-api/pull/9460)
+
+cluster-api 是一个用于实现 Kubernetes 平台自动化管理和运维的工具，支持来自多种供应商的集群。CLI 程序提供集群管理的命令，比如 `clusterctl get` 获取集群的负载信息，`clusterctl delete` 从管理集群列表删除等。
+
+这个 PR 旨在完成 issue 9011 相关工作的一部分，这是红帽 OpenShift 公司首席软件工程师发起的重量级 issue，我们看看它的标题：*Importing API types pulls in lots of dependencies*，导入 API 类型时拉取了很多依赖。
+
+问题描述是这样说的：在 Go 代码中导入 cluster-api 的包（`sigs.k8s.io/cluster-api/api/v1beta1`）并执行 go mod tidy，会下载 56 个依赖项，其中还包括 `controller-runtime`。这是没有必要的，比如你只是需要编写一个消费者，那么你并都用不到 CAPI 的代码。
+
+因此，issuer 建议精简依赖项，尤其是把用到了 `controller-runtime` 的代码迁移出去：
+
+> If we modify the way the `SchemeBuilder` works and move the webhooks to a separate package, then we can reduce the required imports for the API package down to just 31 dependencies, and, these dependencies do not include `controller-runtime` or other fast moving/changing packages.
+
+这是一项规模庞大的改动，但仍然获得了评审者的一致通过。在 issuer 描述的下方总共列举了二十余项需要完成的工作——这次的 PR 便是其中之一——目前除了文档部分均已完成。
+
+查看该 PR 的代码变更，可以看到其主要内容是把 webhook 移到了单独的包，显然 webhook 是服务端才会需要的功能。
+
+@*Sep,24*
+
+## PR05: [loki/10587](https://github.com/grafana/loki/pull/10587)
 
 loki 是一个借鉴了 Prometheus 的设计理念的日志聚合工具，不过采集的不是监控指标而是日志，它是 Grafana 系的工具，满足可观测性需求。
 
