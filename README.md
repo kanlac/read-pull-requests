@@ -2,6 +2,37 @@
 
 探索开源，从读 Pull Request 开始。
 
+## PR07: [goreleaser/4324](https://github.com/goreleaser/goreleaser/pull/4324)
+
+[goreleaser](https://goreleaser.com) 是一个发布自动化工具，它的功能包括但不限于：
+
+- 自动推送镜像到 registry
+- 自动推送 HomeBrew 包到 tap 仓库
+- 自动发布 Winget 包
+- ……
+
+goreleaser 可以以容器化的形式整合到你的 CI 环境，也可以直接以 cli 的方式使用。
+
+该 PR 旨在解决 discussion 4321: *How to make a cross-repository pull requests (for Winget) using a private key?* ——如何使用私钥为 Winget 创建一个跨仓库的拉取请求。
+
+讨论的创建者是来自一家芬兰的数字化公司（不错的地方），他表示使用 goreleaser 配置 HomeBrew 包的发布一切正常，发布 Winget 包时却出现了问题。读第一遍的时候我以为是密钥相关的问题，绕了一些弯子，再读两遍，原来是创建提交的过程出了问题。
+
+这里需要了解一下 Winget 包的发布方式，它是需要你往 microsoft/winget-pkgs 这个仓库创建拉取请求，拉取请求被合并，你的包就算发布成功了。
+
+问题描述的片段摘录：
+
+> With Homebrew tap, I can just commit directly to the main branch of the listed repo. With microsoft/winget-pkgs repo I should be **committing to a named branch** in our own futurice/winget-pkgs fork, and then making a cross-repository pull requests to the Microsoft repo.
+
+这里的关键是需要在指定 fork 仓库的指定分支上创建提交，issuer 尝试了两种不同的定义分支的方式，最后都没有效果。
+
+为什么会出现这样的问题呢？goreleaser 的维护者很快就做出了答复，说这是一个 bug，并且已经解决，非常高效。从代码中我们可以看到，的确在原先的代码中没有处理指定分支的情况，而是都默认向主分支提交了。因此 PR 的标题是 *git client should respect specified branch*。
+
+`gitClient` 实现了一个 `CreateFiles` 方法，通过调用方法来在特定 repo 的特定分支下创建 commit，很简单直观，代码可读性很高。
+
+感悟：如果对一个项目不熟悉，光看 issue 或 discussion 描述，还是比较难定位到问题的，不过像这个 PR，一旦能定位到问题就很容易解决了。所以不必指望自己能够轻轻松松为自己并不熟悉的项目解决问题，最好的方式仍然是相关代码的维护者去解决。不过有些时候一些维护者会告诉你解决思路，把机会留给新人，就像我前面的 PR04 那样。
+
+@*Sep,29*
+
 ## PR06: [cluster-api/9460](https://github.com/kubernetes-sigs/cluster-api/pull/9460)
 
 cluster-api 是一个用于实现 Kubernetes 平台自动化管理和运维的工具，支持来自多种供应商的集群。CLI 程序提供集群管理的命令，比如 `clusterctl get` 获取集群的负载信息，`clusterctl delete` 从管理集群列表删除等。
