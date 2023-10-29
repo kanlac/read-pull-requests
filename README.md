@@ -2,6 +2,32 @@
 
 探索开源，从读 Pull Request 开始。
 
+## PR08: [zerolog/560](https://github.com/rs/zerolog/pull/560)
+
+Go 1.21 将结构化日志库 slog 包含进了标准库，这周看的是另一个日志库 zerolog，它们其实都是基于 zap 的改良，有着更好的性能，更加轻量，且简单易用。
+
+还有一个 logrus 是我在公司用的，顺便提及一下它和 zap 的区别——Reddit 上有个[帖子](https://www.reddit.com/r/golang/comments/zyfeqm/why_i_chose_zerolog_over_logrus_for_go_logging/)谈到了 logrus 使用过程中遇到的弊端：
+
+1. 比较难配置出想要的输出
+2. 高并发场景下内存占用有些高
+
+相对来说，zerolog 更轻量，更易用，更快。而且 logrus 也没有再更新了。
+
+好，进入正题。这次的 PR 标题翻译过来是「在使用 `.Fields` 时显示错误栈」	。看起来就是一个很简单的需求，不过需要知道 zerolog 的基础用法：
+
+```go
+log.Error().Err(err).Msg("print some error")
+log.Error().Stack().Err(err).Msg("print error trace")
+log.Info().Fields(m).Msg("print a map or slice")
+log.Info().Stack().Fields(m).Msg("trying to print a map or slice with error trace")
+```
+
+确实不能更简单易用，也不用创建或维护什么实例，一行代码就可以输出一条 JSON 日志。`Err` 可以接收一个错误，相应的 `Int` 可以接受整型，非基础数据类型则可以用 `Fields`，它接收 `map[string]interface{}` 或者 `[]interface{}` 两种类型。贡献者提出在使用 `Fields` 的时候不能将其中错误的错误栈打印出来。
+
+拉取最新的代码测试，咦？为什么还是不能把切片中的错误的调用栈打印出来？——原来这个变更在合并到主分支后又被抹除了，连单元测试都找不到了。或许维护者后来认为这个功能意义不大吧……
+
+@*Oct,29*
+
 ## PR07: [goreleaser/4324](https://github.com/goreleaser/goreleaser/pull/4324)
 
 [goreleaser](https://goreleaser.com) 是一个发布自动化工具，它的功能包括但不限于：
