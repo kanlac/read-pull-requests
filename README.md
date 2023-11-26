@@ -2,6 +2,74 @@
 
 探索开源，从读 Pull Request 开始。
 
+## PR10: [nilaway/109](https://github.com/uber-go/nilaway/pull/109)
+
+### 一
+
+这个 PR 旨在解决一个经典的 Go 编程中常见的错误。阅读以下代码，能看出有什么问题吗？
+
+```go
+func analyzer(funcChan chan functionResult, wg *sync.WaitGroup) {
+	
+	defer func() {
+		if r := recover(); r != nil {
+			e := fmt.Errorf("INTERNAL PANIC: %s\n%s", r, string(debug.Stack()))
+			funcChan <- functionResult{err: e, index: index, funcDecl: funcDecl}
+		}
+	}()
+	
+	defer wg.Done()
+
+	// some other code...
+}
+
+func run() {
+	var wg = sync.WaitGroup
+	funcChan := make(chan functionResult)
+	for _, file := range Files {
+		wg.Add(1)
+		go analyzer(funcChan, &wg)
+	}
+	go func() {
+		wg.Wait()
+		close(funcChan)
+	}
+}
+```
+
+答案是两个 defer 语句的顺序不对，因为 defer 是 LIFO 顺序的，下面的 defer 会先执行，导致 channel 关闭，出现 "send on closed channel" 错误。
+
+是的，这个 PR 就是修复了这样一个简单的问题（还加上了测试用例），不过若要解释清楚相关的代码在做什么，就没那么简单了，因为涉及到了 golang.org/x/tools/go/analysis 这个静态分析框架的知识，实现原理非常复杂，所以不再深入。
+
+不过这也是我想要讨论的——读别人的代码，要读到什么程度为止？什么时候可以深入细节，什么时候可以粗略跳过？我想关键是搞清楚目标是什么。例如说我现在的目标是在一个小时内完成这篇短文，而写作短文的目的是通过阅读 PR 感受开源社区里别人是怎么协作的。因此，我需要的是看一条 PR 里面的讨论和涉及代码能给我什么启发，而不必关心一个静态分析框架是如何使用的。这一点很重要，不然漫无目的地阅读代码，很可能效率很低，浪费了时间，最后也没啥收获。
+
+### 二
+
+nilway 是一个静态代码分析工具，用于发现可能导致空指针 panic 错误的代码，它基于 analysis 包实现。analysis 允许你编写一些「分析器」（`analysis.Analyzer`），nilaway 中就包含这样一些：用于分析结构体字段的 `structfield.Analyzer`，用于分析闭包函数的 `anonymousfunc.Analyzer`，用于分析函数契约（contract）的 `functioncontracts.Analyzer`……
+
+慢着，函数契约是什么东西？——原来是 nilaway 中提出的一个概念，通过在函数前面写上特定格式的注释，来表示这个函数的行为。比如
+
+```go
+// contract(nonnil->nonnil)
+```
+
+这样一行就表示该函数在接受到非空参数时，也一定返回非空结果。
+
+也就是说，nilway 能够将特定格式的注释识别为函数契约，并检查函数的实现是否符合契约。
+
+我没有找到函数契约的相关文档，也许是还处在开发测试阶段，只有一个 [PR](https://github.com/uber-go/nilaway/pull/8) 粗略介绍了这个功能。
+
+### 三
+
+测试用例代码中，又看到了熟悉的 `require` 包（前面的 PR05 也出现过），类似 `ErrorContains` 这样的封装好的函数可以方便地断言错误中的内容。
+
+这周的 PR 就到这里。最后留下两个问题：
+
+- 什么时候用 t.Parallel()?
+- go.uber.org/goleak 包有什么用？
+
+@*Nov,26*
+
 ## PR09: [gitness/751](https://github.com/harness/gitness/pull/751)
 
 gitness 是 Drone 系的一个包含源码管理的 CI 平台，目前是单独开发的，成熟之后会整合到 Drone 项目。如果只是源码的话，我个人感觉用哪个都差不太多，功能性上应该不会有什么明显的优势。不过在 CI 系统上可以做一些比较。
